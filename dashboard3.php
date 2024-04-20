@@ -1,26 +1,26 @@
+
 <?php
-
-// Database connection
-$servername = "localhost";
-$username = "candy";
-$password = "candy0107";
-$database = "farmersrecords";
-
-$conn = new mysqli($servername, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+session_start();
+if (!isset($_SESSION['id']) || empty($_SESSION['id'])) {
+    echo "Session not set. Redirecting...";
+    header("Location: loginindex.php");
+    exit();
 }
 
-// Retrieve inventory items from database
+include('dbconnect.php');
 
+$id = $_SESSION['id'];
+$sql = "SELECT name FROM signup WHERE id='$id'";
+$result = mysqli_query($conn, $sql);
 
-
-
-// Close connection
-
+if (mysqli_num_rows($result) == 1) {
+    $row = mysqli_fetch_assoc($result);
+    $name = $row['name'];
+} else {
+    $name = "User";
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -197,12 +197,28 @@ nav ul li a:hover {
     background-color: #ddd;
 }
 
+#calendar {
+  width: 300px; /* Set the width of the calendar */
+  height: 300px; /* Set the height of the calendar */
+  margin: 0 auto; /* Center the calendar on the page */
+}
 
+/* Adjust the size of the calendar itself */
+.fc-daygrid {
+  width: 100%; /* Set the width of the calendar grid */
+  height: 100%; /* Set the height of the calendar grid */
+}
 
+/* Adjust the size of the calendar cells */
+.fc-day {
+  width: 40px; /* Set the width of each day cell */
+  height: 40px; /* Set the height of each day cell */
+}
 
     </style>
-</head>
-<body>
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.1/main.js'></script>
+
 </head>
 <body>
     <!-- Include header and navigation -->
@@ -219,7 +235,7 @@ nav ul li a:hover {
                         trigger="hover"
                         style="width:20px;height:20px">
                     </lord-icon>Dashboard</a></li>
-                <li><a href="crops2.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <li><a href="crops.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
                     <lord-icon
                         src="https://cdn.lordicon.com/ysonqgnt.json"
                         trigger="hover"
@@ -258,34 +274,50 @@ nav ul li a:hover {
         
          <div class="dashboard">
         <!-- Profile Card -->
-        <div class="top-cards">
+    <div class="top-cards">
         <div class="card profile-card">
             <h2>Profile</h2>
-            <p>Welcome, User!</p>
+            <p>Welcome, <?php echo $name; ?></p>
+
+                <?php
+                // Fetch upcoming tasks from the database
+                $currentDate = date('Y-m-d');
+                $userId = mysqli_real_escape_string($conn, $_SESSION['id']);
+                $sql = "SELECT * FROM tasks WHERE user_id = $userId AND task_date > '$currentDate' ORDER BY task_date ASC LIMIT 5";
+                $result = mysqli_query($conn, $sql);
+
+                if (mysqli_num_rows($result) > 0) {
+                    echo "<h3>Upcoming tasks</h3>";
+                    echo "<ul>";
+                    while ($row = mysqli_fetch_assoc($result)) {
+                        echo "<li>" . $row['task_name'] . " - " . $row['task_date'] . "</li>";
+                    }
+                    echo "</ul>";
+                } else {
+                    echo "<p>No upcoming tasks</p>";
+                }
+                ?>
             <button onclick="alert('Edit Profile')">Edit Profile</button>
         </div>
 
-        <!-- Search Card -->
-        <div class="card search-card">
-            <h2>Search</h2>
-            <form action="livestock.php" method="GET">
-                    <input type="text" name="query" placeholder="Search...">
-                    <button type="submit">Search</button>
-                </form>
+        <div class="card">
+            <div id='calendar'></div>
         </div>
-</div>
-<div class="bottom-cards">
+    </div>
+    <div class="bottom-cards">
         <!-- Inventory Card -->
         <div class="card inventory-card">
-            <h2>Inventory</h2>
+        <h2>Inventory</h2>
             <ul>
                 <?php
-                $sql = "SELECT * FROM inventory";
+                $user_id = $_SESSION['id'];
+
+                $sql = "SELECT * FROM inventory WHERE user_id = '$user_id'";
                 $result = $conn->query($sql);
-                // Display inventory items
+
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
-                        echo "<li>" . $row["type"] . "</li>";
+                        echo "<li>Name: " . $row["name"] . "<br>Description: " . $row["description"] . "</li>";
                     }
                 } else {
                     echo "<li>No items found</li>";
@@ -294,29 +326,86 @@ nav ul li a:hover {
             </ul>
             <button><a href="inventory.php">Add item</a></button>
         </div>
-
         <!-- Sales Card -->
         <div class="card sales-card">
             <h2>Sales</h2>
-            <p>Total Sales: $1000</p>
             <?php
-            // Retrieve sales items from database
-$sql = "SELECT * FROM sales";
-$result = $conn->query($sql);
+                $sql = "SELECT SUM(amountpaid) AS total_sales FROM sales WHERE user_id='{$_SESSION['id']}'";
+                $result = $conn->query($sql);
 
-                // Display inventory items
+                if ($result->num_rows > 0) {
+                    $row = $result->fetch_assoc();
+                    $total_sales = $row['total_sales'];
+                    echo "<p>Total Sales: Ksh. " . $total_sales . "</p>";
+                } else {
+                    echo "<p>Total Sales: Ksh. 0</p>";
+                }
+
+                $sql = "SELECT * FROM sales WHERE user_id='{$_SESSION['id']}'";
+                $result = $conn->query($sql);
+
                 if ($result->num_rows > 0) {
                     while ($row = $result->fetch_assoc()) {
-                        echo "<li>" . $row["amountpaid"] . "</li>";
+                        echo "<li>Ksh. " . $row["amountpaid"] . "</li>";
                     }
                 } else {
                     echo "<li>No items found</li>";
                 }
-                ?>
+
+            ?>
             <button><a href="sales.php">Add item</a></button>
         </div>
     </div>
-        </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        events: function(fetchInfo, successCallback, failureCallback) {
+            // Fetch events from the database for the logged-in user
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'load-events.php', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === XMLHttpRequest.DONE) {
+                    if (xhr.status === 200) {
+                        successCallback(JSON.parse(xhr.responseText));
+                    } else {
+                        failureCallback(xhr.responseText);
+                    }
+                }
+            };
+            xhr.send('user_id=' + encodeURIComponent(<?php echo $_SESSION['id']; ?>));
+        },
+        dateClick: function(info) {
+            var date = info.dateStr;
+            var taskName = prompt('Enter a task name for ' + date + ':');
+            if (taskName) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', 'save-reminder.php', true);
+                xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === XMLHttpRequest.DONE) {
+                        if (xhr.status === 200) {
+                            alert('Task added: ' + taskName);
+                            calendar.refetchEvents();
+                        } else {
+                            alert('Error adding task');
+                        }
+                    }
+                };
+                xhr.send('task_name=' + encodeURIComponent(taskName) + '&task_date=' + encodeURIComponent(date) + '&user_id=' + encodeURIComponent(<?php echo $_SESSION['id']; ?>));
+            }
+        }
+    });
+
+    calendar.render();
+});
+
+</script>
+
 </body>
 </html>
 

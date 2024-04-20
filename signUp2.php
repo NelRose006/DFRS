@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -226,7 +224,7 @@ error_reporting(0);
 	$password = $_POST['password'];
 	
 	//Database connection
-	$conn = new mysqli('localhost','candy','candy0107','farmersrecords');
+	$conn = new mysqli('localhost','root','','farmersrecords');
 	if($conn->connect_error){
 		echo "$conn->connect_error";
 		die("Connection Failed : ". $conn->connect_error);

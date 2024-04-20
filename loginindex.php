@@ -1,3 +1,23 @@
+<?php
+session_start();
+include('dbconnect.php');
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+
+    $sql = "SELECT id FROM signup WHERE username='$username' AND password='$password'";
+    $result = mysqli_query($conn, $sql);
+
+    if (mysqli_num_rows($result) == 1) {
+        $row = mysqli_fetch_assoc($result);
+        $_SESSION['id'] = $row['id'];
+        header("Location: dashboard3.php");
+    } else {
+        $error = "Invalid username or password";
+    }
+}
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -190,7 +210,7 @@ button{
     </div>
     <div class="form">
         <h2>LOGIN</h2>
-        <form action="dashboard3.php" method="post">
+        <form action="loginindex.php" method="post">
         
             <input type="text" name="username" placeholder="Username" required><br>
             <input type="password" name="password" placeholder="Password" required><br>
@@ -209,69 +229,3 @@ button{
     </div>
 </body>
 </html>
-<?php
-error_reporting(0);
-// Start session
-session_start();
-
-// Database connection
-$servername = "localhost";
-$username = "candy";
-$password = "candy0107";
-$database = "farmersrecords";
-
-$conn = new mysqli($servername, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-// Check if form is submitted
-if ($_SERVER["REQUEST_METHOD"] == "POST") 
-{
-    // Get username and password from the form
-    
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // Prepare SQL statement
-    $sql = "SELECT * FROM signup WHERE username = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $username);
-
-    // Execute SQL statement
-    $stmt->execute();
-
-    // Get result
-    $result = $stmt->get_result();
-
-    // Check if username exists in the database
-    if ($result->num_rows > 0) {
-        // Fetch row
-        $row = $result->fetch_assoc();
-
-        // Verify password
-        if (password_verify($password, $row['password'])) {
-            // Authentication successful, set session variable
-            $_SESSION['username'] = $username;
-
-            // Redirect to profile page
-            header("Location: dashboard.php");
-            exit;
-        } else {
-            // Authentication failed, display error message
-            $error_message = "Invalid username or password!";
-        }
-    } else {
-        // Authentication failed, display error message
-        $error_message = "Invalid username or password!";
-    }
-
-    // Close statement
-    $stmt->close();
-}
-
-// Close connection
-$conn->close();
-?>

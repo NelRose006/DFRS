@@ -1,291 +1,342 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['id']) || empty($_SESSION['id'])) {
+    echo "Session not set. Redirecting...";
+    header("Location: loginindex.php");
+    exit();
+}
+
+include 'dbconnect.php';
+
+$userId = $_SESSION['id'];
+if (!is_numeric($userId)) {
+    echo "Invalid user ID. Redirecting...";
+    header("Location: loginindex.php");
+    exit();
+}
+
+$sql = "SELECT * FROM sales WHERE user_id = $userId";
+$result = $conn->query($sql);
+
+if (!$result) {
+    echo "Error: " . $sql . "<br>" . $conn->error;
+    exit();
+}
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $name = isset($_POST['name']) ? $_POST['name'] : '';
+    $phonenumber = isset($_POST['phonenumber']) ? $_POST['phonenumber'] : '';
+    $itemname = isset($_POST['itemname']) ? $_POST['itemname'] : '';
+    $quantity = isset($_POST['quantity']) ? $_POST['quantity'] : '';
+    $category = isset($_POST['category']) ? $_POST['category'] : '';
+    $amountpaid = isset($_POST['amountpaid']) ? $_POST['amountpaid'] : '';
+    $modeofpayment = isset($_POST['modeofpayment']) ? $_POST['modeofpayment'] : '';
+    $date = isset($_POST['date']) ? $_POST['date'] : '';
+    
+
+    $sql = "INSERT INTO sales (user_id, name, phonenumber, itemname, quantity, category, amountpaid, modeofpayment, date) 
+            VALUES ('{$_SESSION['id']}', '$name', '$phonenumber', '$itemname', '$quantity', '$category', '$amountpaid', '$modeofpayment', '$date')";
+    
+    if(mysqli_query($conn, $sql)){
+        echo "<h3>Data stored in the database successfully.</h3>";
+
+        header("Location: inventory.php");
+        exit;
+    } else{
+        echo "ERROR: Could not execute $sql. " . mysqli_error($conn);
+    }
+}
+
+mysqli_close($conn);
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Form</title>
-    <!--<link rel="stylesheet" href="styles.css">-->
+    <title>Expense Tracker</title>
     <style>
         body {
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    margin: 0;
-    padding: 0;
-}
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
 
-.container {
-    width: 400px;
-    margin: 100px auto;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
+        .container {
+            width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
 
-h2 {
-    margin-bottom: 20px;
-    text-align: center;
-}
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-.form-group {
-    margin-bottom: 20px;
-}
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
 
-label {
-    display: block;
-    margin-bottom: 5px;
-}
+        table, th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
 
-input[type="text"],
-select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box;
-}
+        th {
+            background-color: #f2f2f2;
+        }
 
-select {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="6" viewBox="0 0 12 6"><path fill="%23666" d="M6 5.196L0 .804 1.037 0l4.963 4.963L11.962 0 13 0z"/></svg>');
-    background-repeat: no-repeat;
-    background-position: right 10px top 50%;
-}
+        input[type="text"],
+        input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
 
-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    width: 100%;
-}
+        button {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
 
-button:hover {
-    background-color: #45a049;
-}
-header {
-    background-color: #6a994e;
-    color: #fff;
-    text-align: center;
-    padding: 20px;
-}
+        button:hover {
+            background-color: #45a049;
+        }
 
-nav {
-    background-color: #6a994e;
-    padding: 10px;
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-}
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
 
-nav ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-}
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto 15% auto;
+            border: 1px solid #888;
+            width: 50%;
+            padding: 20px;
+        }
 
-nav ul li {
-    margin-bottom: 10px;
-}
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
 
-nav ul li a {
-    color: #333;
-    text-decoration: none;
-    display: block;
-}
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
 
-nav ul li a:hover {
-    background-color: #ddd;
-}
+        header {
+            background-color: #6a994e;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
 
+        nav {
+            background-color: #6a994e;
+            padding: 10px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+        }
+
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        nav ul li {
+            margin-bottom: 10px;
+        }
+
+        nav ul li a {
+            color: #333;
+            text-decoration: none;
+            display: block;
+        }
+
+        nav ul li a:hover {
+            background-color: #ddd;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>DIGITAL FARMERS' RECORDS SYSTEM</h1>
     </header>
+    <nav>
+        <ul>
+            <li><a href="dashboard3.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/cnpvyndp.json"
+                    trigger="hover"
+                    style="width:20px;height:20px">
+                </lord-icon>Dashboard</a></li>
+            <li><a href="crops.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/ysonqgnt.json"
+                    trigger="hover"
+                    style="width:20px;height:20px">
+                </lord-icon>crop</a></li>
+            <li><a href="livestockandpoultry.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/viueejdd.json"
+                    trigger="hover"
+                    colors="primary:#000000,secondary:#08a88a"
+                    style="width:20px;height:20px">
+                </lord-icon>livestock</a></li>
+            <li><a href="inventory.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/vdjwmfqs.json"
+                    trigger="hover"
+                    style="width:20px;height:20px">
+                </lord-icon>inventory</a></li>
+            <li><a href="sales.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/mfmkufkr.json"
+                    trigger="hover"
+                    style="width:20px;height:20px">
+                </lord-icon>sales</a></li>
+            <li><a href="loginindex.php" class="logout"><script src="https://cdn.lordicon.com/lordicon.js"></script>
+                <lord-icon
+                    src="https://cdn.lordicon.com/vduvxizq.json"
+                    trigger="hover"
+                    style="width:20px;height:20px">
+                </lord-icon>
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="nav-item">Log out</span></a>
+            </li> 
+        </ul>
+    </nav>
 
-        <nav>
-            <ul>
-                <li><a href="dashboard3.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-                    <lord-icon
-                        src="https://cdn.lordicon.com/cnpvyndp.json"
-                        trigger="hover"
-                        style="width:20px;height:20px">
-                    </lord-icon>dashboard</a></li>
-                <li><a href="crops2.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-                    <lord-icon
-                        src="https://cdn.lordicon.com/ysonqgnt.json"
-                        trigger="hover"
-                        style="width:20px;height:20px">
-                    </lord-icon>crop</a></li>
-                <li><a href="livestockandpoultry.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-                    <lord-icon
-                        src="https://cdn.lordicon.com/viueejdd.json"
-                        trigger="hover"
-                        colors="primary:#000000,secondary:#08a88a"
-                        style="width:20px;height:20px">
-                    </lord-icon>livestock</a></li>
-                <li><a href="inventory.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-                    <lord-icon
-                        src="https://cdn.lordicon.com/vdjwmfqs.json"
-                        trigger="hover"
-                        style="width:20px;height:20px">
-                    </lord-icon>inventory</a></li>
-                <li><a href="sales.php"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-                    <lord-icon
-                        src="https://cdn.lordicon.com/mfmkufkr.json"
-                        trigger="hover"
-                        style="width:20px;height:20px">
-                    </lord-icon>sales</a></li>
-                    <li><a href="loginindex.php" class="logout"><script src="https://cdn.lordicon.com/lordicon.js"></script>
-<lord-icon
-    src="https://cdn.lordicon.com/vduvxizq.json"
-    trigger="hover"
-    style="width:20px;height:20px">
-</lord-icon>
-                     <i class="fas fa-sign-out-alt"></i>
-                       <span class="nav-item">Log out</span></a>
-                    </li> 
-            </ul>
-        </nav>
     <div class="container">
-        <h2>CUSTOMER ACTIVITY FORM</h2>
-        <form action="sales.php" method="post">
-            <div class="form-group">
-                <label for="name">Name:</label>
-                <input type="text" id="name" name="name" placeholder="eg: Rose" required>
+        <h1>Sales</h1>
+
+        <button onclick="document.getElementById('addItemModal').style.display='block'">Add Item</button><br><br>
+
+        <input type="text" id="searchInput" onkeyup="searchItems()" placeholder="Search...">
+        <button onclick="searchItems()">Search</button><br><br>
+
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone Number</th>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Category</th>
+                <th>Amount Paid</th>
+                <th>Mode of Payment</th>
+            </tr>
+            <?php
+            if ($result->num_rows > 0) {
+                while($row = $result->fetch_assoc()) {
+                    echo "<tr>";
+                    echo "<td>".$row['id']."</td>";
+                    echo "<td>".$row['name']."</td>";
+                    echo "<td>".$row['phonenumber']."</td>";
+                    echo "<td>".$row['itemname']."</td>";
+                    echo "<td>".$row['quantity']."</td>";
+                    echo "<td>".$row['category']."</td>";
+                    echo "<td>".$row['amountpaid']."</td>";
+                    echo "<td>".$row['modeofpayment']."</td>";
+                    echo "</tr>";
+                }
+            } else {
+                echo "<tr><td colspan='8'>No items found</td></tr>";
+            }
+            ?>
+        </table>
+
+        <div id="addItemModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="document.getElementById('addItemModal').style.display='none'">&times;</span>
+                <h2>Add New Item</h2>
+                <form action="sales.php" method="POST">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" name="name" required><br>
+                    <label for="phonenumber">Phone Number</label>
+                    <input type="text" id="phonenumber" name="phonenumber" required><br>
+                    <label for="itemname">Item Name:</label>
+                    <input type="text" id="itemname" name="itemname" required><br>
+                    <label for="quantity">Quantity:</label>
+                    <input type="text" id="quantity" name="quantity" required><br>
+                    <div class="form-group">
+                    <label for="category">Category:</label><br>
+                    <select id="category" name="category" required>
+                        <option value="crop">Crop</option>
+                        <option value="livestock">Livestock</option>
+                        <option value="poultry">Poultry</option>
+                    </select><br>
+                    </div>
+                    <label for="amountpaid">Amount Paid:</label>
+                    <input type="text" id="amountpaid" name="amountpaid" required><br>
+                    <div class="form-group">
+                    <label for="modeofpayment">Mode of Payment:</label><br>
+                    <select id="modeofpayment" name="modeofpayment" required>
+                        <option value="cash">Cash</option>
+                        <option value="M-pesa">M-pesa</option>
+                        <option value="banktransfer">Bank Transfer</option>
+                    </select><br>
+                    </div>
+                    <label for="date">Date:</label>
+                    <input type="date" id="date" name="date" required><br>
+                    <input type="hidden" id="user_id" name="user_id" value="<?php echo $userId; ?>">
+                    <button type="submit">Add Item</button>
+                </form>
             </div>
-            <div class="form-group">
-                <label for="phone">Phone Number:</label>
-                <input type="text" id="phone" name="phone" placeholder="eg 0712345678" required>
-            </div>
-            <div class="form-group">
-                <label for="itemName">Item Name:</label>
-                <input type="text" id="itemName" name="itemName" required>
-            </div>
-            <div class="form-group">
-                <label for="quanity">Quantity:</label>
-                <input type="text" id="quanity" name="quantity" placeholder="eg 5kgs" required>
-            </div>
-            <div class="form-group">
-                <label for="category">Category:</label>
-                <select id="category" name="category" required>
-                    <option value="Crop">Crop</option>
-                    <option value="livestock">Livestock</option>
-                    <!--<option value="Electronics">Electronics</option>
-                    <option value="Transportation">Transportation</option>-->
-                    <option value="Others">Others</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="amountPaid">Amount Paid:</label>
-                <input type="text" id="amountPaid" name="amountPaid" placeholder="Enter amount paid" required>
-            </div>
-            <div class="form-group">
-                <label for="modeOfPayment">Mode of Payment:</label>
-                <select id="modeOfPayment" name="modeOfPayment" required>
-                    <option value="Cash">Cash</option>
-                    <!--<option value="Credit Card">Credit Card</option>
-                    <option value="Debit Card">Debit Card</option>-->
-                    <option value="M-pesa">M-pesa</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="date">Date:</label>
-                <input type="date" id="date" name="date" required>
-            </div>
-            <button type="submit">Submit</button>
-        </form>
+        </div>
     </div>
+
+    <script>
+        function searchItems() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("searchInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementsByTagName("table")[0];
+            tr = table.getElementsByTagName("tr");
+            for (i = 0; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[1];
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+        }
+    </script>
 </body>
-</html>
-<!DOCTYPE html>
-<html>
-
-<head>
-	<title>crops</title>
-</head>
-
-<body>
-	
-		<?php
-        
-       /* $name = $_POST['name'];
-        $phonenumber = $_POST['phonenumber'];
-        $itemname = $_POST['itemname'];
-        $quantity = $_POST['quantity'];
-        $category = $_POST['category'];
-        $amountpaid = $_POST['amountpaid'];
-        $modeofpayment = $_POST['modeofpayment'];
-        $date= $_POST['date'];
-        
-        //Database connection
-        $conn = new mysqli('localhost','candy','candy0107','farmersrecords');
-        if($conn->connect_error){
-            echo "$conn->connect_error";
-            die("Connection Failed : ". $conn->connect_error);
-        } else 
-        {
-            $stmt = $conn->prepare("insert into sales(name, phonenumber, itemname, quantity, category, amountpaid, modeofpayment, date) values(?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("sisssssi", $name, $phonenumber, $itemname, $quantity, $category, $amountpaid, $modeofpayment, $date);
-            $execval = $stmt->execute();
-            echo $execval;
-            echo "Registration successfully...";
-           
-                header("Location: sales.php");
-                
-            $stmt->close();
-            $conn->close();
-        }*/
-//error_reporting(0);
-		// servername => localhost
-		// username => root
-		// password => empty
-		// database name => staff
-		$conn = mysqli_connect("localhost", "candy", "candy0107", "farmersrecords");
-		
-		// Check connection
-		if($conn === false){
-			die("ERROR: Could not connect. "
-				. mysqli_connect_error());
-		}
-		
-		// Taking all 5 values from the form data(input)
-		$name = $_REQUEST['name'];
-		$phonenumber = $_REQUEST['phonenumber'];
-		$itemname = $_REQUEST['itemname'];
-        $quantity = $_REQUEST['quantity'];
-		$category = $_REQUEST['category'];
-		$amountpaid = $_REQUEST['amountpaid'];
-		$modeofpayment= $_REQUEST['modeofpayment'];
-        $date= $_REQUEST['date'];
-		// Performing insert query execution
-		// here our table name is sales
-		$sql = "INSERT INTO sales VALUES ('$name','$phonenumber','$itemname','$quantity','$category','$amountpaid','$modeofpayment','$date')";
-		
-		if(mysqli_query($conn, $sql)){
-			echo "<h3>data stored in a database successfully."
-				. 
-
-					// Redirect to profile page
-					header("Location: sales.php");
-					exit;
-		} else{
-			echo "ERROR: Hush! Sorry $sql. "
-				. mysqli_error($conn);
-		}
-		
-		// Close connection
-		mysqli_close($conn);
-		?>
-	
-</body>
-
 </html>
